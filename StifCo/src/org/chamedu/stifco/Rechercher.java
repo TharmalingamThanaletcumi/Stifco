@@ -47,264 +47,38 @@ import android.widget.ViewSwitcher;
 
 public class Rechercher extends Activity implements ViewSwitcher.ViewFactory,View.OnClickListener {
 
-	Button inscription;
-	Button connexion;
-	EditText ville;
-	RadioGroup lieu;
-	String leLieu;
-
-	// Variables pour la date et l'heure
-	private TextView mDateDisplay;
-	private int mYear;
-	private int mMonth;
-	private int mDay;
-	private int mHour;
-	private int mMinute;
-
-	static final int TIME_24_DIALOG_ID = 1;
-	static final int DATE_DIALOG_ID = 2;
-
-	// Variables pour le nombre de places
-	private TextSwitcher mSwitcher;
-	private int mCounter = 1;
-	private Button plusButton, moinsButton;
-
-	// Varaibles pour la lecture du flux Json
-	private String jsonString;
-	JSONObject jsonResponse;
-	JSONArray arrayJson;
 	AutoCompleteTextView tvGareAuto;
-	ArrayList<String> items = new ArrayList<String>();
+	try {
+		jsonResponse = new JSONObject(jsonString);
+		// Cr�ation du tableau g�n�ral �partir d'un JSONObject
+		JSONArray jsonArray = jsonResponse.getJSONArray("gares");
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.proposer);
+		// Pour chaque �l�ment du tableau
+		for (int i = 0; i < jsonArray.length(); i++) {
 
-		lieu = (RadioGroup)findViewById(R.id.rgLieu);
-		ville = (EditText)findViewById(R.id.etVille);
+			// Cr�ation d'un tableau �l�ment � partir d'un JSONObject
+			JSONObject jsonObj = jsonArray.getJSONObject(i);
 
-		// Traitement du changement de la date et de l'heure
-		mDateDisplay = (TextView) findViewById(R.id.tvLaDate);
+			// R�cup�ration �partir d'un JSONObject nomm�
+			JSONObject fields  = jsonObj.getJSONObject("fields");
 
-		setDialogOnClickListener(R.id.btChangeDate, DATE_DIALOG_ID);
-		setDialogOnClickListener(R.id.btChangeHeure, TIME_24_DIALOG_ID);
+			// R�cup�ration de l'item qui nous int�resse
+			String nom = fields.getString("nom_de_la_gare");
 
-		final Calendar c = Calendar.getInstance();
-		mYear = c.get(Calendar.YEAR);
-		mMonth = c.get(Calendar.MONTH);
-		mDay = c.get(Calendar.DAY_OF_MONTH);
-		mHour = c.get(Calendar.HOUR_OF_DAY);
-		mMinute = c.get(Calendar.MINUTE);
-
-		updateDisplay();
-
-		// Traitement du changement du nombre de places
-		mSwitcher = (TextSwitcher)findViewById(R.id.tsPlaces);
-		mSwitcher.setFactory(this);
-
-		Animation in = AnimationUtils.loadAnimation(this,
-				android.R.anim.fade_in);
-		Animation out = AnimationUtils.loadAnimation(this,
-				android.R.anim.fade_out);
-		mSwitcher.setInAnimation(in);
-		mSwitcher.setOutAnimation(out);
-
-		plusButton = (Button)findViewById(R.id.btPlus);
-		plusButton.setOnClickListener(this);
-		moinsButton = (Button)findViewById(R.id.btMoins);
-		moinsButton.setOnClickListener(this);
-
-		updateCounter();
-
-		// Traitement du textView en autocompl�tion � partir de la source Json
-		jsonString = lireJSON();
-
-		try {
-			jsonResponse = new JSONObject(jsonString);
-			// Cr�ation du tableau g�n�ral �partir d'un JSONObject
-			JSONArray jsonArray = jsonResponse.getJSONArray("gares");
-
-			// Pour chaque �l�ment du tableau
-			for (int i = 0; i < jsonArray.length(); i++) {
-
-				// Cr�ation d'un tableau �l�ment � partir d'un JSONObject
-				JSONObject jsonObj = jsonArray.getJSONObject(i);
-
-				// R�cup�ration �partir d'un JSONObject nomm�
-				JSONObject fields  = jsonObj.getJSONObject("fields");
-
-				// R�cup�ration de l'item qui nous int�resse
-				String nom = fields.getString("nom_de_la_gare");
-
-				// Ajout dans l'ArrayList
-				items.add(nom);		
-			}
-
-			ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line, items);
-			tvGareAuto = (AutoCompleteTextView)findViewById(R.id.actvGare);
-			tvGareAuto.setAdapter(adapter);
-
-		} catch (JSONException e) {
-			e.printStackTrace();
+			// Ajout dans l'ArrayList
+			items.add(nom);		
 		}
 
-		// Listener sur le bouton d'envoi
-		inscription = (Button)findViewById(R.id.btOffre);
-		inscription.setOnClickListener(this);
-	}	
+		ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,android.R.layout.simple_dropdown_item_1line, items);
+		tvGareAuto = (AutoCompleteTextView)findViewById(R.id.actvGare);
+		tvGareAuto.setAdapter(adapter);
 
-	private void setDialogOnClickListener(int buttonId, final int dialogId) {
-		Button b = (Button)findViewById(buttonId);
-		b.setOnClickListener(new View.OnClickListener() {
-			public void onClick(View v) {
-				showDialog(dialogId);
-			}
-		});
+	} catch (JSONException e) {
+		e.printStackTrace();
 	}
-
-	@Override
-	protected Dialog onCreateDialog(int id) {
-		switch (id) {
-		case TIME_24_DIALOG_ID:
-			return new TimePickerDialog(this,
-					mTimeSetListener, mHour, mMinute, id == TIME_24_DIALOG_ID);
-		case DATE_DIALOG_ID:
-			return new DatePickerDialog(this,
-					mDateSetListener,
-					mYear, mMonth, mDay);
-		}
-		return null;
-	}
-
-	@Override
-	protected void onPrepareDialog(int id, Dialog dialog) {
-		switch (id) {
-		case TIME_24_DIALOG_ID:
-			((TimePickerDialog) dialog).updateTime(mHour, mMinute);
-			break;
-		case DATE_DIALOG_ID:
-			((DatePickerDialog) dialog).updateDate(mYear, mMonth, mDay);
-			break;
-		}
-	}    
-
-	private void updateDisplay() {
-		mDateDisplay.setText(
-				new StringBuilder()
-				// Month is 0 based so add 1
-				.append(mMonth + 1).append("-")
-				.append(mDay).append("-")
-				.append(mYear).append(" ")
-				.append(pad(mHour)).append(":")
-				.append(pad(mMinute)));
-	}
-
-	private DatePickerDialog.OnDateSetListener mDateSetListener =
-			new DatePickerDialog.OnDateSetListener() {
-
-		public void onDateSet(DatePicker view, int year, int monthOfYear,
-				int dayOfMonth) {
-			mYear = year;
-			mMonth = monthOfYear;
-			mDay = dayOfMonth;
-			updateDisplay();
-		}
-	};
-
-	private TimePickerDialog.OnTimeSetListener mTimeSetListener =
-			new TimePickerDialog.OnTimeSetListener() {
-
-		public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-			mHour = hourOfDay;
-			mMinute = minute;
-			updateDisplay();
-		}
-	};
-
-	private static String pad(int c) {
-		if (c >= 10)
-			return String.valueOf(c);
-		else
-			return "0" + String.valueOf(c);
-	}
-
-	public void onClick(View v) {
-		if ( v == plusButton ) { 
-			if (mCounter<3) {
-				mCounter++;
-			} else {
-				Toast.makeText(Rechercher.this, "D�sol�, la limite maximale est fix�e � trois personnes !", Toast.LENGTH_SHORT).show();
-			}
-
-			updateCounter();
-		} 
-
-		if ( v == moinsButton ) { 
-			if (mCounter>1) {
-				mCounter--;
-			} else {
-				Toast.makeText(Rechercher.this, "D�sol�, la limite minimale est fix�e � une personne !", Toast.LENGTH_SHORT).show();
-			}
-
-			updateCounter();
-		} 
-
-		if ( v == inscription ) {
-			List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-
-			nameValuePairs.add(new BasicNameValuePair("date",""+mDateDisplay.getText()));
-			nameValuePairs.add(new BasicNameValuePair("ville",""+ville.getText()));
-
-			switch (lieu.getCheckedRadioButtonId()) {
-			case R.id.rbPoste :
-				leLieu = "poste";
-				break;
-			case R.id.rbMairie :
-				leLieu = "mairie";
-				break;	
-			case R.id.rbEglise :
-				leLieu = "eglise";
-				break;	
-			}
-
-			nameValuePairs.add(new BasicNameValuePair("lieu",""+leLieu));
-			nameValuePairs.add(new BasicNameValuePair("places",""+mCounter));
-			nameValuePairs.add(new BasicNameValuePair("gare",""+tvGareAuto.getText()));
-
-			try {				
-				RestClient.doPost("/soumission.php", nameValuePairs, new OnResultListener() {					
-					@Override
-					public void onResult(String json) {
-						if ( json.equals("insertion_ok")) {
-							Toast.makeText(Rechercher.this, "Votre proposition a �t� enregistr�e, merci.", Toast.LENGTH_LONG).show();
-							finish();
-						} else {
-							Toast.makeText(Rechercher.this, json, Toast.LENGTH_LONG).show();
-						}					
-					}
-				});
-			} catch (URISyntaxException e) {
-				e.printStackTrace();
-			} catch (HttpException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	private void updateCounter() {
-		mSwitcher.setText(String.valueOf(mCounter));
-	}
-
-	public View makeView() {
-		TextView t = new TextView(this);
-		t.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-		t.setTextSize(36);
-		return t;
-	}
-
+	
+	nameValuePairs.add(new BasicNameValuePair("gare",""+tvGareAuto.getText()));
+	
 	public String lireJSON() {
 		InputStream is = getResources().openRawResource(R.raw.gares);
 		Writer writer = new StringWriter();
